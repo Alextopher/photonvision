@@ -5,6 +5,7 @@ import NetworkingCard from "@/components/settings/NetworkingCard.vue";
 import LightingControlCard from "@/components/settings/LEDControlCard.vue";
 import { useSettingsStore } from "@/stores/settings/GeneralSettingsStore";
 import ApriltagControlCard from "@/components/settings/ApriltagControlCard.vue";
+import NeuralNetworkModelsCard from "@/components/settings/NeuralNetworkModelsCard.vue";
 </script>
 
 <template>
@@ -14,5 +15,6 @@ import ApriltagControlCard from "@/components/settings/ApriltagControlCard.vue";
     <NetworkingCard />
     <LightingControlCard v-if="useSettingsStore().lighting.supported" />
     <ApriltagControlCard />
+    <NeuralNetworkModelsCard />
   </div>
 </template>
