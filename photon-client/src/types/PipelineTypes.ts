@@ -77,6 +77,15 @@ export interface PipelineSettings {
   hsvSaturation: WebsocketNumberPair | [number, number];
   pipelineType: PipelineType;
   contourIntersection: number;
+  static_x: number;
+  static_y: number;
+  static_width: number;
+  static_height: number;
+  dynamic_x: number;
+  dynamic_y: number;
+  dynamic_width: number;
+  dynamic_height: number;
+  cropFallback: boolean;
 }
 export type ConfigurablePipelineSettings = Partial<
   Omit<

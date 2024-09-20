@@ -19,10 +19,12 @@ package org.photonvision.vision.pipeline;
 
 import java.util.List;
 import org.apache.commons.lang3.tuple.Pair;
+import org.opencv.core.Scalar;
 import org.photonvision.vision.frame.Frame;
 import org.photonvision.vision.frame.FrameStaticProperties;
 import org.photonvision.vision.opencv.DualOffsetValues;
 import org.photonvision.vision.pipe.impl.*;
+import org.photonvision.vision.pipe.impl.DrawRectanglePipe.DrawRectanglePipeParams;
 import org.photonvision.vision.pipeline.result.CVPipelineResult;
 import org.photonvision.vision.target.TargetModel;
 import org.photonvision.vision.target.TrackedTarget;
@@ -45,7 +47,12 @@ public class OutputStreamPipeline {
     private final CalculateFPSPipe calculateFPSPipe = new CalculateFPSPipe();
     private final ResizeImagePipe resizeImagePipe = new ResizeImagePipe();
 
-    private final long[] pipeProfileNanos = new long[12];
+    private static final Scalar yellow = new Scalar(0, 255, 255);
+    private final DrawRectanglePipe drawStaticCropPipe = new DrawRectanglePipe(yellow);
+    private static final Scalar red = new Scalar(0, 0, 255);
+    private final DrawRectanglePipe drawDynamicCropPipe = new DrawRectanglePipe(red);
+
+    private final long[] pipeProfileNanos = new long[13];
 
     protected void setPipeParams(
             FrameStaticProperties frameStaticProperties, AdvancedPipelineSettings settings) {
@@ -117,6 +124,9 @@ public class OutputStreamPipeline {
 
         drawCalibrationPipe.setParams(
                 new DrawCalibrationPipe.DrawCalibrationPipeParams(settings.streamingFrameDivisor));
+
+        drawStaticCropPipe.setParams(new DrawRectanglePipeParams(settings.getStaticCrop()));
+        drawDynamicCropPipe.setParams(new DrawRectanglePipeParams(settings.getDynamicCrop()));
     }
 
     public CVPipelineResult process(
@@ -151,6 +161,14 @@ public class OutputStreamPipeline {
             // Draw 2D Crosshair on output
             var draw2dCrosshairResultOnInput = draw2dCrosshairPipe.run(Pair.of(inMat, targetsToDraw));
             sumPipeNanosElapsed += pipeProfileNanos[3] = draw2dCrosshairResultOnInput.nanosElapsed;
+
+            // Draw cropped rectangle on output
+            var drawRectangleResult = drawStaticCropPipe.run(outMat);
+            sumPipeNanosElapsed += pipeProfileNanos[9] = drawRectangleResult.nanosElapsed;
+
+            // Draw dynamic crop rectangle on output
+            var drawDynamicRectangleResult = drawDynamicCropPipe.run(outMat);
+            sumPipeNanosElapsed += pipeProfileNanos[10] = drawDynamicRectangleResult.nanosElapsed;
 
             if (!(settings instanceof AprilTagPipelineSettings)
                     && !(settings instanceof ArucoPipelineSettings)

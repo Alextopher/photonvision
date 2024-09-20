@@ -21,7 +21,9 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 import org.apache.commons.lang3.tuple.Pair;
+import org.opencv.core.Mat;
 import org.opencv.core.Point;
+import org.opencv.core.Rect;
 import org.photonvision.vision.frame.Frame;
 import org.photonvision.vision.frame.FrameThresholdType;
 import org.photonvision.vision.opencv.CVShape;
@@ -49,6 +51,8 @@ public class ColoredShapePipeline
     private final Draw2dTargetsPipe draw2DTargetsPipe = new Draw2dTargetsPipe();
     private final Draw3dTargetsPipe draw3dTargetsPipe = new Draw3dTargetsPipe();
     private final CalculateFPSPipe calculateFPSPipe = new CalculateFPSPipe();
+    private final CropPipe staticCropPipe = new CropPipe();
+    private final CropPipe dynamicCropPipe = new CropPipe();
 
     private final Point[] rectPoints = new Point[4];
 
@@ -66,6 +70,12 @@ public class ColoredShapePipeline
 
     @Override
     protected void setPipeParamsImpl() {
+        Rect staticCropParams = settings.getStaticCrop();
+        staticCropPipe.setParams(staticCropParams);
+
+        Rect dynamicCropParams = settings.getDynamicCrop();
+        dynamicCropPipe.setParams(CropPipe.intersection(staticCropParams, dynamicCropParams));
+
         DualOffsetValues dualOffsetValues =
                 new DualOffsetValues(
                         settings.offsetDualPointA,
@@ -171,8 +181,33 @@ public class ColoredShapePipeline
     protected CVPipelineResult process(Frame frame, ColoredShapePipelineSettings settings) {
         long sumPipeNanosElapsed = 0L;
 
-        CVPipeResult<List<Contour>> findContoursResult =
-                findContoursPipe.run(frame.processedImage.getMat());
+        CVPipeResult<Mat> dynamicCropResult = dynamicCropPipe.run(frame.processedImage.getMat());
+        sumPipeNanosElapsed += dynamicCropResult.nanosElapsed;
+
+        CVPipeResult<List<TrackedTarget>> targetListResult =
+                process_inner(dynamicCropResult.output, settings);
+        sumPipeNanosElapsed += targetListResult.nanosElapsed;
+
+        if (targetListResult.output.isEmpty() && settings.cropFallback) {
+            CVPipeResult<Mat> staticCropResult = staticCropPipe.run(frame.processedImage.getMat());
+            sumPipeNanosElapsed += staticCropResult.nanosElapsed;
+
+            targetListResult = process_inner(staticCropResult.output, settings);
+            sumPipeNanosElapsed += targetListResult.nanosElapsed;
+        }
+
+        var fpsResult = calculateFPSPipe.run(null);
+        var fps = fpsResult.output;
+
+        return new CVPipelineResult(
+                frame.sequenceID, sumPipeNanosElapsed, fps, targetListResult.output, frame);
+    }
+
+    private CVPipeResult<List<TrackedTarget>> process_inner(
+            Mat mat, ColoredShapePipelineSettings settings) {
+        int sumPipeNanosElapsed = 0;
+
+        CVPipeResult<List<Contour>> findContoursResult = findContoursPipe.run(mat);
         sumPipeNanosElapsed += findContoursResult.nanosElapsed;
 
         CVPipeResult<List<Contour>> speckleRejectResult =
@@ -182,7 +217,7 @@ public class ColoredShapePipeline
         List<CVShape> shapes = null;
         if (settings.contourShape == ContourShape.Circle) {
             CVPipeResult<List<CVShape>> findCirclesResult =
-                    findCirclesPipe.run(Pair.of(frame.processedImage.getMat(), speckleRejectResult.output));
+                    findCirclesPipe.run(Pair.of(mat, speckleRejectResult.output));
             sumPipeNanosElapsed += findCirclesResult.nanosElapsed;
             shapes = findCirclesResult.output;
         } else {
@@ -225,9 +260,6 @@ public class ColoredShapePipeline
             targetList = collect2dTargetsResult.output;
         }
 
-        var fpsResult = calculateFPSPipe.run(null);
-        var fps = fpsResult.output;
-
-        return new CVPipelineResult(frame.sequenceID, sumPipeNanosElapsed, fps, targetList, frame);
+        return new CVPipeResult<List<TrackedTarget>>(targetList, sumPipeNanosElapsed);
     }
 }

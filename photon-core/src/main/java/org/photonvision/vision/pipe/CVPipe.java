@@ -59,5 +59,15 @@ public abstract class CVPipe<I, O, P> {
     public static class CVPipeResult<O> {
         public O output;
         public long nanosElapsed;
+
+        public CVPipeResult() {
+            this.output = null;
+            this.nanosElapsed = 0;
+        }
+
+        public CVPipeResult(O output, long nanosElapsed) {
+            this.output = output;
+            this.nanosElapsed = nanosElapsed;
+        }
     }
 }

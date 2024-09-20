@@ -19,6 +19,7 @@ package org.photonvision.vision.pipeline;
 
 import java.util.Objects;
 import org.opencv.core.Point;
+import org.opencv.core.Rect;
 import org.photonvision.common.util.numbers.DoubleCouple;
 import org.photonvision.common.util.numbers.IntegerCouple;
 import org.photonvision.vision.opencv.ContourGroupingMode;
@@ -90,6 +91,29 @@ public class AdvancedPipelineSettings extends CVPipelineSettings {
     public int cornerDetectionSideCount = 4;
     public double cornerDetectionAccuracyPercentage = 10;
 
+    // Static crop values
+    public int static_x = 0;
+    public int static_y = 0;
+    public int static_width = Integer.MAX_VALUE;
+    public int static_height = Integer.MAX_VALUE;
+
+    // Dynamic crop values
+    public int dynamic_x = 0;
+    public int dynamic_y = 0;
+    public int dynamic_width = Integer.MAX_VALUE;
+    public int dynamic_height = Integer.MAX_VALUE;
+
+    // Fallback to checking static crop if dynamic crop fails
+    public boolean cropFallback = false;
+
+    public Rect getStaticCrop() {
+        return new Rect(static_x, static_y, static_width, static_height);
+    }
+
+    public Rect getDynamicCrop() {
+        return new Rect(dynamic_x, dynamic_y, dynamic_width, dynamic_height);
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
@@ -124,7 +148,16 @@ public class AdvancedPipelineSettings extends CVPipelineSettings {
                 && contourGroupingMode == that.contourGroupingMode
                 && contourIntersection == that.contourIntersection
                 && Objects.equals(targetModel, that.targetModel)
-                && cornerDetectionStrategy == that.cornerDetectionStrategy;
+                && cornerDetectionStrategy == that.cornerDetectionStrategy
+                && static_x == that.static_x
+                && static_y == that.static_y
+                && static_width == that.static_width
+                && static_height == that.static_height
+                && dynamic_x == that.dynamic_x
+                && dynamic_y == that.dynamic_y
+                && dynamic_width == that.dynamic_width
+                && dynamic_height == that.dynamic_height
+                && cropFallback == that.cropFallback;
     }
 
     @Override
