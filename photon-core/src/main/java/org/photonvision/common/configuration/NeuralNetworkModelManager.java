@@ -37,6 +37,7 @@ import org.photonvision.common.hardware.Platform;
 import org.photonvision.common.logging.LogGroup;
 import org.photonvision.common.logging.Logger;
 import org.photonvision.vision.objects.Model;
+import org.photonvision.vision.objects.OpenCVModel;
 import org.photonvision.vision.objects.RknnModel;
 
 /**
@@ -63,6 +64,7 @@ public class NeuralNetworkModelManager {
     private NeuralNetworkModelManager() {
         ArrayList<NeuralNetworkBackend> backends = new ArrayList<>();
 
+        backends.add(NeuralNetworkBackend.OPENCV);
         if (Platform.isRK3588()) {
             backends.add(NeuralNetworkBackend.RKNN);
         }
@@ -86,7 +88,8 @@ public class NeuralNetworkModelManager {
     private static final Logger logger = new Logger(NeuralNetworkModelManager.class, LogGroup.Config);
 
     public enum NeuralNetworkBackend {
-        RKNN(".rknn");
+        RKNN(".rknn"),
+        OPENCV(".onnx");
 
         private String format;
 
@@ -174,6 +177,11 @@ public class NeuralNetworkModelManager {
             return Optional.empty();
         }
 
+        // Prefer rknn models
+        if (models.containsKey(NeuralNetworkBackend.RKNN)) {
+            return models.get(NeuralNetworkBackend.RKNN).stream().findFirst();
+        }
+
         return models.get(supportedBackends.get(0)).stream().findFirst();
     }
 
@@ -188,6 +196,7 @@ public class NeuralNetworkModelManager {
             return;
         }
 
+        // TODO: Backend support might be a set instead of a single element
         Optional<NeuralNetworkBackend> backend =
                 Arrays.stream(NeuralNetworkBackend.values())
                         .filter(b -> b.format.equals(modelExtension))
@@ -210,6 +219,10 @@ public class NeuralNetworkModelManager {
                     logger.info(
                             "Loaded model " + model.getName() + " for backend " + backend.get().toString());
                     break;
+                case OPENCV:
+                    models.get(backend.get()).add(new OpenCVModel(model, labels));
+                    logger.info(
+                            "Loaded model " + model.getName() + " for backend " + backend.get().toString());
                 default:
                     break;
             }

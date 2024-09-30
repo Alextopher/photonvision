@@ -34,7 +34,7 @@ import org.photonvision.vision.pipe.impl.NeuralNetworkPipeResult;
 
 /** Manages an object detector using the rknn backend. */
 public class RknnObjectDetector implements ObjectDetector {
-    private static final Logger logger = new Logger(RknnDetectorJNI.class, LogGroup.General);
+    private static final Logger logger = new Logger(RknnDetectorJNI.class, LogGroup.VisionModule);
 
     /** Cleaner instance to release the detector when it goes out of scope */
     private final Cleaner cleaner = Cleaner.create();
@@ -95,12 +95,12 @@ public class RknnObjectDetector implements ObjectDetector {
      *
      * @param in The input image to perform object detection on.
      * @param nmsThresh The threshold value for non-maximum suppression.
-     * @param boxThresh The threshold value for bounding box detection.
+     * @param confidence The threshold value for bounding box detection.
      * @return A list of NeuralNetworkPipeResult objects representing the detected objects. Returns an
      *     empty list if the detector is not initialized or if no objects are detected.
      */
     @Override
-    public List<NeuralNetworkPipeResult> detect(Mat in, double nmsThresh, double boxThresh) {
+    public List<NeuralNetworkPipeResult> detect(Mat in, double nmsThresh, double confidence) {
         if (objPointer <= 0) {
             // Report error and make sure to include the model name
             logger.error("Detector is not initialized! Model: " + model.modelFile.getName());
@@ -116,7 +116,7 @@ public class RknnObjectDetector implements ObjectDetector {
         }
 
         // Detect objects in the letterboxed frame
-        var results = RknnJNI.detect(objPointer, letterboxed.getNativeObjAddr(), nmsThresh, boxThresh);
+        var results = RknnJNI.detect(objPointer, letterboxed.getNativeObjAddr(), nmsThresh, confidence);
         if (results == null) {
             return List.of();
         }
